@@ -95,6 +95,10 @@ namespace MapDataTools {
         }
     }
 
+    static int ReadPointer(unsigned char AddressBytes[3]) {
+        return AddressBytes[2]*0x10000 + AddressBytes[1]*0x100 + AddressBytes[0]*0x01;
+    }
+
 
 
     void Compress(bool MapMode) {
@@ -615,20 +619,169 @@ namespace MapDataTools {
 //
 
 
-    void GetPaletteData(fstream &ROMFile,
+
+
+
+
+
+
+    Status GetMapData(fstream &ROMFile,
+                      MapMetadata &aMapMetadata,
+                      MapData &aMapData) {
+
+        unsigned char Byte, NbColors;
+        unsigned char AddressBytes[3];
+        bool IsGraphicsDataCompressed = true;
+
+        /* Return if one of the addresses is not provided */
+        if (aMapMetadata.MapArrangementAddress == 0 ||
+            aMapMetadata.TilesetAddress == 0 ||
+            aMapMetadata.GraphicsAddress == 0 ||
+            aMapMetadata.PaletteAddress == 0) {
+            return FAILURE;
+        }
+
+
+        /*** Map arrangement data */
+        ROMFile.seekp(aMapMetadata.MapArrangementAddress, ios::beg);
+        ROMFile.read((char*)(&Byte), 1);
+        if (Byte != 0x10) {
+            return FAILURE;
+        }
+        ROMFile.seekg(1, ios::cur);
+        ROMFile.read((char*)(&AddressBytes[0]), 3);
+
+        GetMapArrangementData(ROMFile,
+                              aMapData,
+                              ReadPointer(AddressBytes));
+
+
+        /*** Tileset data */
+        ROMFile.seekp(aMapMetadata.TilesetAddress, ios::beg);
+        ROMFile.read((char*)(&Byte), 1);
+        if (Byte != 0x20) {
+            return FAILURE;
+        }
+        ROMFile.seekg(4, ios::cur);
+        ROMFile.read((char*)(&AddressBytes[0]), 3);
+
+        GetTilesetData(ROMFile,
+                       aMapData,
+                       ReadPointer(AddressBytes));
+
+
+        /*** Graphics data */
+        ROMFile.seekp(aMapMetadata.GraphicsAddress, ios::beg);
+        ROMFile.read((char*)(&Byte), 1);
+        if (Byte != 0x80) {
+            return FAILURE;
+        }
+        ROMFile.read((char*)(&Byte), 1);
+        if (Byte == 0x80) {
+            /* 0x80 means the data is clear */
+            IsGraphicsDataCompressed = false;
+        }
+        else if (Byte != 0x00) {
+            /* 0x00 means the data is compressed */
+            return FAILURE;
+        }
+        ROMFile.seekg(2, ios::cur);
+        ROMFile.read((char*)(&AddressBytes[0]), 3);
+
+        GetGraphicsData(ROMFile,
+                        aMapData,
+                        ReadPointer(AddressBytes),
+                        IsGraphicsDataCompressed);
+
+
+        /*** Palette data */
+        ROMFile.seekp(aMapMetadata.PaletteAddress, ios::beg);
+        ROMFile.read((char*)(&Byte), 1);
+        if (Byte != 0x40) {
+            return FAILURE;
+        }
+        ROMFile.seekg(1, ios::cur);
+        ROMFile.read((char*)(&NbColors), 1);
+        ROMFile.seekg(1, ios::cur);
+        ROMFile.read((char*)(&AddressBytes[0]), 3);
+
+        GetPaletteData(ROMFile,
+                       aMapData,
+                       ReadPointer(AddressBytes),
+                       NbColors);
+
+
+        return SUCCESS;
+    }
+
+
+
+    void GetMapArrangementData(fstream &ROMFile,
+                               MapData &aMapData,
+                               int MapDataAddress) {
+
+        unsigned char Width, Height, LengthHundreds, LengthUnits;
+        int DataLength, CurrentByte;
+
+        /* Get the width/height in number of screens + length of the decompressed data */
+        ROMFile.seekp(MapDataAddress, ios::beg);
+        ROMFile.read((char*)(&Width), 1);
+        ROMFile.read((char*)(&Height), 1);
+        ROMFile.read((char*)(&LengthUnits), 1);
+        ROMFile.read((char*)(&LengthHundreds), 1);
+        DataLength = (0x100 * LengthHundreds) + LengthUnits;
+
+        /* Allocate the decompressed data buffer */
+        vector<unsigned char> DecompressedData(DataLength);
+
+        /* Decompress the map arrangement data */
+        Decompress(ROMFile,
+                   DecompressedData,
+                   MapDataAddress + 4, /* +4 to ignore the leading width/height/length bytes */
+                   DataLength);
+
+        /* Update map data */
+        aMapData.MapTiles.clear();
+        aMapData.NbScreensX = (int)Width;
+        aMapData.NbScreensY = (int)Height;
+        for (CurrentByte = 0; CurrentByte < DataLength; CurrentByte++) {
+            aMapData.MapTiles.push_back(DecompressedData[CurrentByte]);
+        }
+    }
+
+
+    void GetTilesetData(fstream &ROMFile,
                         MapData &aMapData,
-                        int PaletteAddress) {
+                        int TilesetAddress) {
 
-        /* TODO: read the actual number of bytes */
-        ROMFile.seekp(PaletteAddress, ios::beg);
+        unsigned char LengthHundreds, LengthUnits;
+        int DataLength, CurrentTileData, CurrentByte;
 
-        /* Update palette data */
-        aMapData.PaletteData.clear();
-        int ColorIndex;
-        unsigned char ColorData[2];
-        for (ColorIndex = 0; ColorIndex < 0x70; ColorIndex++) {
-            ROMFile.read((char*)(&ColorData[0]), 2);
-            aMapData.InsertColorData(ColorData[1], ColorData[0]); /* Reverse the order of the two bytes */
+        /* Get the length of the decompressed data */
+        ROMFile.seekp(TilesetAddress, ios::beg);
+        ROMFile.read((char*)(&LengthUnits), 1);
+        ROMFile.read((char*)(&LengthHundreds), 1);
+        DataLength = (0x100 * LengthHundreds) + LengthUnits;
+
+        /* Allocate the decompressed data buffer */
+        vector<unsigned char> DecompressedData(DataLength);
+
+        /* Decompress the map arrangement data */
+        Decompress(ROMFile,
+                   DecompressedData,
+                   TilesetAddress + 2, /* +2 to ignore the leading length bytes */
+                   DataLength);
+
+        /* Update tileset data */
+        aMapData.Tile16Data.clear();
+        unsigned char Tile16ByteData[8];
+        for (CurrentTileData = 0;
+             CurrentTileData < DataLength/8 && CurrentTileData < MAX_TILE16;
+             CurrentTileData++) {
+            for (CurrentByte = 0; CurrentByte < 8; CurrentByte++) {
+                Tile16ByteData[CurrentByte] = DecompressedData[8*CurrentTileData + CurrentByte];
+            }
+            aMapData.InsertTile16Data(Tile16ByteData);
         }
     }
 
@@ -687,77 +840,23 @@ namespace MapDataTools {
     }
 
 
-    void GetTilesetData(fstream &ROMFile,
+    void GetPaletteData(fstream &ROMFile,
                         MapData &aMapData,
-                        int TilesetAddress) {
+                        int PaletteAddress,
+                        int NbColors) {
 
-        unsigned char LengthHundreds, LengthUnits;
-        int DataLength, CurrentTileData, CurrentByte;
+        /* TODO: read the actual number of bytes */
+        ROMFile.seekp(PaletteAddress, ios::beg);
 
-        /* Get the length of the decompressed data */
-        ROMFile.seekp(TilesetAddress, ios::beg);
-        ROMFile.read((char*)(&LengthUnits), 1);
-        ROMFile.read((char*)(&LengthHundreds), 1);
-        DataLength = (0x100 * LengthHundreds) + LengthUnits;
-
-        /* Allocate the decompressed data buffer */
-        vector<unsigned char> DecompressedData(DataLength);
-
-        /* Decompress the map arrangement data */
-        Decompress(ROMFile,
-                   DecompressedData,
-                   TilesetAddress + 2, /* +2 to ignore the leading length bytes */
-                   DataLength);
-
-        /* Update tileset data */
-        aMapData.Tile16Data.clear();
-        unsigned char Tile16ByteData[8];
-        for (CurrentTileData = 0;
-             CurrentTileData < DataLength/8 && CurrentTileData < MAX_TILE16;
-             CurrentTileData++) {
-            for (CurrentByte = 0; CurrentByte < 8; CurrentByte++) {
-                Tile16ByteData[CurrentByte] = DecompressedData[8*CurrentTileData + CurrentByte];
-            }
-            aMapData.InsertTile16Data(Tile16ByteData);
+        /* Update palette data */
+        aMapData.PaletteData.clear();
+        int ColorIndex;
+        unsigned char ColorData[2];
+        for (ColorIndex = 0; ColorIndex < NbColors; ColorIndex++) {
+            ROMFile.read((char*)(&ColorData[0]), 2);
+            aMapData.InsertColorData(ColorData[1], ColorData[0]); /* Reverse the order of the two bytes */
         }
     }
-
-
-
-    void GetMapArrangementData(fstream &ROMFile,
-                               MapData &aMapData,
-                               int MapDataAddress) {
-
-        unsigned char Width, Height, LengthHundreds, LengthUnits;
-        int DataLength, CurrentByte;
-
-        /* Get the width/height in number of screens + length of the decompressed data */
-        ROMFile.seekp(MapDataAddress, ios::beg);
-        ROMFile.read((char*)(&Width), 1);
-        ROMFile.read((char*)(&Height), 1);
-        ROMFile.read((char*)(&LengthUnits), 1);
-        ROMFile.read((char*)(&LengthHundreds), 1);
-        DataLength = (0x100 * LengthHundreds) + LengthUnits;
-
-        /* Allocate the decompressed data buffer */
-        vector<unsigned char> DecompressedData(DataLength);
-
-        /* Decompress the map arrangement data */
-        Decompress(ROMFile,
-                   DecompressedData,
-                   MapDataAddress + 4, /* +4 to ignore the leading width/height/length bytes */
-                   DataLength);
-
-        /* Update map data */
-        aMapData.MapTiles.clear();
-        aMapData.NbScreensX = (int)Width;
-        aMapData.NbScreensY = (int)Height;
-        for (CurrentByte = 0; CurrentByte < DataLength; CurrentByte++) {
-            aMapData.MapTiles.push_back(DecompressedData[CurrentByte]);
-        }
-    }
-
-
 
 
 

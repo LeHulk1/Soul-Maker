@@ -10,16 +10,21 @@
 #include <fstream>
 #include <iostream>
 #include <iomanip>
+#include <vector>
 
 #include "resource.h"
 
 #include "MapData.h"
 #include "MapDataTools.h"
+#include "MapMetadata.h"
 #include "ROMCheck.h"
 
 
 #define ID_FILE_EXIT 9001
 #define ID_STUFF_GO 9002
+
+
+using namespace std;
 
 /*  Declare Windows procedure  */
 LRESULT CALLBACK WindowProcedure (HWND, UINT, WPARAM, LPARAM);
@@ -31,23 +36,30 @@ BOOL CALLBACK AboutDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam
 TCHAR szClassName[ ] = _T("CodeBlocksWindowsApp");
 
 
+HWND hWndComboBox;       /* Combobox handle */
+
+const char *ComboBoxItems[] = { "Sri Lanka", "El Salvador", "Botswana",
+                                    "France", "Cuba" };
+
 /* Global fstream */
 static fstream gROMFile;
 
 /* Global Map Data container */
 static MapData gMapData;
 
+/* Global Map Metadata container */
+static vector<MapMetadata> gMapMetadata;
+
 static bool bMapLoaded = false;
 
 
-using namespace std;
-
 int WINAPI WinMain (HINSTANCE hThisInstance,
-                     HINSTANCE hPrevInstance,
-                     LPSTR lpszArgument,
-                     int nCmdShow)
+                    HINSTANCE hPrevInstance,
+                    LPSTR lpszArgument,
+                    int nCmdShow)
 {
     HWND hwnd;               /* This is the handle for our window */
+
     MSG messages;            /* Here messages to the application are saved */
     WNDCLASSEX wincl;        /* Data structure for the windowclass */
 
@@ -93,8 +105,6 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
         return 0;
     }
 
-
-
     /* Make the window visible on the screen */
     ShowWindow (hwnd, nCmdShow);
 
@@ -122,6 +132,48 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 {
     switch (message)                  /* handle the messages */
     {
+        case WM_CREATE:
+//            hWndComboBox = CreateWindow("COMBOBOX",
+//                                        NULL,
+//                                        WS_CHILD | WS_VISIBLE | CBS_DROPDOWN | WS_VSCROLL,
+//                                        60, 62, 136, 160,
+//                                        hwnd,
+//                                        (HMENU)IDC_COMBOBOX_TEXT,
+//                                        (HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE),
+//                                        NULL);
+//
+//            if( !hWndComboBox )
+//            {
+//                MessageBox(hwnd,
+//                           "Could not create the combo box",
+//                           "Failed Control Creation",
+//                           MB_OK);
+//
+//            }
+//
+//            SendMessage(hWndComboBox,
+//                        CB_ADDSTRING,
+//                        0,
+//                        reinterpret_cast<LPARAM>((LPCTSTR)ComboBoxItems[0]));
+//            SendMessage(hWndComboBox,
+//                        CB_ADDSTRING,
+//                        0,
+//                        reinterpret_cast<LPARAM>((LPCTSTR)ComboBoxItems[1]));
+//            SendMessage(hWndComboBox,
+//                        CB_ADDSTRING,
+//                        0,
+//                        reinterpret_cast<LPARAM>((LPCTSTR)ComboBoxItems[2]));
+//            SendMessage(hWndComboBox,
+//                        CB_ADDSTRING,
+//                        0,
+//                        reinterpret_cast<LPARAM>((LPCTSTR)ComboBoxItems[3]));
+//            SendMessage(hWndComboBox,
+//                        CB_ADDSTRING,
+//                        0,
+//                        reinterpret_cast<LPARAM>((LPCTSTR)ComboBoxItems[4]));
+            break;
+
+
         case WM_COMMAND:
             switch(LOWORD(wParam))
             {
@@ -174,7 +226,21 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 
                             //MapDataTools::Decompress(gROMFile, gMapData, 0xF653B, 0);
 
-                            MapDataTools::GetMapArrangementData(gROMFile, gMapData, 0xF18E2); /*(10)*/
+
+                            /* Get Map metadata */
+                            GetMapMetadata(gMapMetadata);
+
+                            /* Get data for one map */
+                            int MapLoadStatus;
+                            MapLoadStatus = MapDataTools::GetMapData(gROMFile,
+                                                                     gMapMetadata[30],
+                                                                     gMapData);
+
+                            if (MapLoadStatus == FAILURE) {
+                               MessageBox(hwnd, "Failed to read map metadata!", "Notice", MB_OK | MB_ICONINFORMATION);
+                            }
+
+                            //MapDataTools::GetMapArrangementData(gROMFile, gMapData, 0x9F448); /*(10)*/
 
 //                            cout << endl;
 //                            cout << endl;
@@ -192,7 +258,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 //                                }
 //                            }
 
-                            MapDataTools::GetTilesetData(gROMFile, gMapData, 0x48200); /*(20)*/
+                            //MapDataTools::GetTilesetData(gROMFile, gMapData, 0x97A0F); /*(20)*/
 
 //                            cout << endl;
 //                            cout << endl;
@@ -204,7 +270,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 //                                cout << endl;
 //                            }
 
-                            MapDataTools::GetGraphicsData(gROMFile, gMapData, 0x706EF, true); /*(80)*/
+                            //MapDataTools::GetGraphicsData(gROMFile, gMapData, 0xA436B, true); /*(80)*/
 
 //                            cout << endl;
 //                            cout << endl;
@@ -219,7 +285,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 //                                cout << endl;
 //                            }
 
-                            MapDataTools::GetPaletteData(gROMFile, gMapData, 0xF3A6B); /*(40)*/
+                            //MapDataTools::GetPaletteData(gROMFile, gMapData, 0xF6E12); /*(40)*/
 
 //                            cout << endl;
 //                            cout << endl;
@@ -310,7 +376,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 
             if (bMapLoaded) {
 
-
+                /* Prepare for drawing */
                 RECT rect;
                 GetClientRect(hwnd, &rect); // To get size of window
                 int win_width = rect.right - rect.left;
@@ -321,13 +387,18 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                 HBITMAP Membitmap = CreateCompatibleBitmap(hdc, win_width, win_height);
                 SelectObject(hDCMem, Membitmap);
 
+
+                /*** Draw Map ***/
+
+                int NbScreensX = gMapData.NbScreensX;
+                int NbScreensY = gMapData.NbScreensY;
                 int CurrentTile16, Tile8Index, CurrentPixel;
                 int x, y, ScreenX, ScreenY, Tile16X, Tile16Y, Tile8InTile16, Palette;
                 bool Hflip, Vflip;
                 Tile8 CurrentTile8;
 
-                for (ScreenX = 0; ScreenX < gMapData.NbScreensX; ScreenX++) {
-                    for (ScreenY = 0; ScreenY < gMapData.NbScreensY; ScreenY++) {
+                for (ScreenX = 0; ScreenX < NbScreensX; ScreenX++) {
+                    for (ScreenY = 0; ScreenY < NbScreensY; ScreenY++) {
                         for (Tile16X = 0; Tile16X < 16; Tile16X++) {
                             for (Tile16Y = 0; Tile16Y < 16; Tile16Y++) {
 
@@ -345,17 +416,55 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                                         for (y = 0; y < 8; y++) {
                                             CurrentPixel = CurrentTile8.Pixel((Hflip?(7-x):x), (Vflip?(7-y):y)) + 0x10*Palette;
                                             SetPixelV(hDCMem,
-                                                     256*ScreenX + 16*Tile16X + x + ((Tile8InTile16 & 0x01) ? 8 : 0),
-                                                     256*ScreenY + 16*Tile16Y + y + ((Tile8InTile16 & 0x02) ? 8 : 0),
-                                                     RGB(gMapData.PaletteData[CurrentPixel].Red,
-                                                         gMapData.PaletteData[CurrentPixel].Green,
-                                                         gMapData.PaletteData[CurrentPixel].Blue));
+                                                      256*ScreenX + 16*Tile16X + x + ((Tile8InTile16 & 0x01) ? 8 : 0),
+                                                      256*ScreenY + 16*Tile16Y + y + ((Tile8InTile16 & 0x02) ? 8 : 0),
+                                                      RGB(gMapData.PaletteData[CurrentPixel].Red,
+                                                          gMapData.PaletteData[CurrentPixel].Green,
+                                                          gMapData.PaletteData[CurrentPixel].Blue));
                                         }
                                     }
                                 }
                             }
                         }
                     }
+                }
+
+
+                /*** Draw tileset ***/
+
+                int Tile16Index = 0;
+                Tile16X = 0;
+                Tile16Y = 0;
+
+                while (Tile16Index < (int)gMapData.Tile16Data.size()) {
+                    for (Tile8InTile16 = 0; Tile8InTile16 < 4; Tile8InTile16++) {
+
+                        Tile8Index = gMapData.Tile16Data[Tile16Index].Tile8Data[Tile8InTile16];
+                        Hflip = gMapData.Tile16Data[Tile16Index].HorizontalFlip[Tile8InTile16];
+                        Vflip = gMapData.Tile16Data[Tile16Index].VerticalFlip[Tile8InTile16];
+                        Palette = gMapData.Tile16Data[Tile16Index].Palette[Tile8InTile16] - 1;
+                        CurrentTile8 = gMapData.Tile8Data[Tile8Index];
+
+                        for (x = 0; x < 8; x++) {
+                            for (y = 0; y < 8; y++) {
+                                CurrentPixel = CurrentTile8.Pixel((Hflip?(7-x):x), (Vflip?(7-y):y)) + 0x10*Palette;
+                                SetPixelV(hDCMem,
+                                          256*NbScreensX + 16*Tile16X + x + ((Tile8InTile16 & 0x01) ? 8 : 0) + 20,
+                                                           16*Tile16Y + y + ((Tile8InTile16 & 0x02) ? 8 : 0),
+                                          RGB(gMapData.PaletteData[CurrentPixel].Red,
+                                              gMapData.PaletteData[CurrentPixel].Green,
+                                              gMapData.PaletteData[CurrentPixel].Blue));
+                            }
+                        }
+                    }
+                    if (Tile16X == 15) {
+                        Tile16X = 0;
+                        Tile16Y++;
+                    }
+                    else {
+                        Tile16X++;
+                    }
+                    Tile16Index++;
                 }
 
                 // Now BitBlt the stuff from memory buffer to screen
@@ -397,6 +506,7 @@ BOOL CALLBACK AboutDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam
     switch(Message)
     {
         case WM_INITDIALOG:
+
 
         return TRUE;
         case WM_COMMAND:

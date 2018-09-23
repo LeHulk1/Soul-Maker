@@ -29,3 +29,4 @@ BEGIN
     GROUPBOX        "About this program...",IDC_STATIC,7,7,225,52
     CTEXT           "An example program showing how to use Dialog Boxes\r\n\r\nby theForger",IDC_STATIC,16,18,144,33
 END
+
