@@ -12,7 +12,7 @@ BEGIN
 
     POPUP "&Stuff"
     BEGIN
-        MENUITEM "&Select Map", ID_STUFF_GO
+        MENUITEM "&Select Map", ID_STUFF_GO, GRAYED
         //MENUITEM "G&o somewhere else", 0, GRAYED
     END
 END

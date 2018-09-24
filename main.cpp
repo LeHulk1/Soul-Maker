@@ -154,6 +154,8 @@ static vector<MapMetadata> gMapMetadata;
 static int gMapID = 0;
 
 static bool bMapLoaded = false;
+static bool bReloadMap = true;
+
 
 
 int WINAPI WinMain (HINSTANCE hThisInstance,
@@ -295,55 +297,38 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                     ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
                     ofn.lpstrDefExt = "txt";
 
-                    if(GetOpenFileName(&ofn)) {
-                        // Do something usefull with the filename stored in szFileName
-                        gROMFile.open(szFileName, ios::in | ios::out | ios::binary | ios::ate);
-                        if (!gROMFile.is_open()) {
-                            cout << "ROM file \"" << szFileName << "\" is not found!\n";
-                            return 1;
-                        }
-//                        unsigned char FileStartSample[5];
-//                        ROMFile.seekg(0, ios::beg);
-//                        ROMFile.read((char*)(&(FileStartSample[0])), 1);
-//                        ROMFile.read((char*)(&(FileStartSample[1])), 1);
-//                        ROMFile.read((char*)(&(FileStartSample[2])), 1);
-//                        ROMFile.read((char*)(&(FileStartSample[3])), 1);
-//                        FileStartSample[4] = '\0';
+                    if(!GetOpenFileName(&ofn)) {
+                        break;
+                    }
+                    // Do something usefull with the filename stored in szFileName
+                    gROMFile.open(szFileName, ios::in | ios::out | ios::binary | ios::ate);
+                    if (!gROMFile.is_open()) {
+                        cout << "ROM file \"" << szFileName << "\" is not found!\n";
+                        return 1;
+                    }
 
-//                        LPCSTR FileStartSampleSTR[100] = {0};
-//                        for (int i = 0; i < 4; i++) {
-//                            FileStartSampleSTR << hex << setw(2) << setfill('0') << int(FileStartSample[i]) << ' ';
-//                        }
-//                        MessageBox(hwnd, (LPCSTR)FileStartSample, "Notice", MB_OK | MB_ICONINFORMATION);
+                    ROMStatus Status = CheckOriginalROM(gROMFile);
+
+                    if (Status == UNKNOWN) {
+                        MessageBox(hwnd, "ROM unknown!", "Notice",
+                            MB_OK | MB_ICONINFORMATION);
+                        break;
+                    }
+
+                    /* Get Map metadata */
+                    GetMapMetadata(gMapMetadata);
+
+                    /* Get data for one map */
+//                    int MapLoadStatus;
+//                    MapLoadStatus = MapDataTools::GetMapData(gROMFile,
+//                                                             gMapMetadata[gMapID],
+//                                                             gMapData);
 //
-//                        LPSTR pszFileText;
-//                        pszFileText = (char*)GlobalAlloc(GPTR, 10);
-//                        for (int i = 0; i < 4; i++) {pszFileText[i] = FileStartSample[i];}
-//                        SetWindowText(hwnd, pszFileText);
+//                    if (MapLoadStatus == FAILURE) {
+//                       MessageBox(hwnd, "Failed to read map metadata!", "Notice", MB_OK | MB_ICONINFORMATION);
+//                    }
 
-                        ROMStatus Status = CheckOriginalROM(gROMFile);
-
-                        if (Status != UNKNOWN) {
-                            //MessageBox(hwnd, (Status == UNHEADERED ? "Un-headered ROM." : "Headered ROM."), "Notice", MB_OK | MB_ICONINFORMATION);
-
-
-                            //MapDataTools::Decompress(gROMFile, gMapData, 0xF653B, 0);
-
-
-                            /* Get Map metadata */
-                            GetMapMetadata(gMapMetadata);
-
-                            /* Get data for one map */
-                            int MapLoadStatus;
-                            MapLoadStatus = MapDataTools::GetMapData(gROMFile,
-                                                                     gMapMetadata[gMapID],
-                                                                     gMapData);
-
-                            if (MapLoadStatus == FAILURE) {
-                               MessageBox(hwnd, "Failed to read map metadata!", "Notice", MB_OK | MB_ICONINFORMATION);
-                            }
-
-                            //MapDataTools::GetMapArrangementData(gROMFile, gMapData, 0x9F448); /*(10)*/
+                    //MapDataTools::GetMapArrangementData(gROMFile, gMapData, 0x9F448); /*(10)*/
 
 //                            cout << endl;
 //                            cout << endl;
@@ -361,7 +346,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 //                                }
 //                            }
 
-                            //MapDataTools::GetTilesetData(gROMFile, gMapData, 0x97A0F); /*(20)*/
+                    //MapDataTools::GetTilesetData(gROMFile, gMapData, 0x97A0F); /*(20)*/
 
 //                            cout << endl;
 //                            cout << endl;
@@ -373,7 +358,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 //                                cout << endl;
 //                            }
 
-                            //MapDataTools::GetGraphicsData(gROMFile, gMapData, 0xA436B, true); /*(80)*/
+                    //MapDataTools::GetGraphicsData(gROMFile, gMapData, 0xA436B, true); /*(80)*/
 
 //                            cout << endl;
 //                            cout << endl;
@@ -388,7 +373,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 //                                cout << endl;
 //                            }
 
-                            //MapDataTools::GetPaletteData(gROMFile, gMapData, 0xF6E12); /*(40)*/
+                    //MapDataTools::GetPaletteData(gROMFile, gMapData, 0xF6E12); /*(40)*/
 
 //                            cout << endl;
 //                            cout << endl;
@@ -398,12 +383,10 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 //                                            << setw(2) << setfill('0') << gMapData.PaletteData[ColorIdx].Blue*8 << endl;
 //                            }
 
-                            bMapLoaded = true;
-                        }
-//
+                    bMapLoaded = true;
 
+                    EnableMenuItem(GetMenu(hwnd), ID_STUFF_GO, MF_BYCOMMAND | MF_ENABLED);
 
-                    }
                 }
                 break;
                 case ID_FILE_EXIT:
@@ -436,6 +419,21 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
         break;
         case WM_PAINT:
         {
+
+            if (bReloadMap) {
+                /* Get data for one map */
+                int MapLoadStatus;
+                MapLoadStatus = MapDataTools::GetMapData(gROMFile,
+                                                         gMapMetadata[gMapID],
+                                                         gMapData);
+
+                bReloadMap = false;
+
+                if (MapLoadStatus == FAILURE) {
+                   //MessageBox(hwnd, "Failed to read map metadata!", "Notice", MB_OK | MB_ICONINFORMATION);
+                   break;
+                }
+            }
 
             PAINTSTRUCT ps;
             //RECT r;
@@ -485,15 +483,35 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
             if (bMapLoaded) {
 
                 /* Prepare for drawing */
-                RECT rect;
-                GetClientRect(hwnd, &rect); // To get size of window
-                int win_width = rect.right - rect.left;
-                int win_height = rect.bottom + rect.left;
+//                RECT rect;
+//                GetClientRect(hwnd, &rect); // To get size of window
+//                int win_width = rect.right - rect.left;
+//                int win_height = rect.bottom + rect.left;
 
                 HDC hDCMem = CreateCompatibleDC(hdc); // Create a device context in memory
                 //int savedDC = SaveDC(hDCMem);
-                HBITMAP Membitmap = CreateCompatibleBitmap(hdc, win_width, win_height);
-                SelectObject(hDCMem, Membitmap);
+//                HBITMAP Membitmap = CreateCompatibleBitmap(hdc, win_width, win_height);
+//                SelectObject(hDCMem, Membitmap);
+
+
+                unsigned char* lpBitmapBits;
+
+                int W = gMapData.NbScreensX*256 + 276;
+                int H = gMapData.NbScreensY*256;
+
+	BITMAPINFO bi;
+	ZeroMemory(&bi, sizeof(BITMAPINFO));
+	bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	bi.bmiHeader.biWidth = W;//m_rcMainRect.Width();
+	bi.bmiHeader.biHeight = -H;//-m_rcMainRect.Height();  //negative so (0,0) is at top left
+	bi.bmiHeader.biPlanes = 1;
+	bi.bmiHeader.biBitCount = 32;
+
+
+	HBITMAP bitmap = ::CreateDIBSection(hDCMem, &bi, DIB_RGB_COLORS,  (VOID**)&lpBitmapBits, NULL, 0);
+	HGDIOBJ oldbmp = ::SelectObject(hDCMem, bitmap);
+
+	BitBlt(hDCMem, 0, 0, W, H, hdc, 0, 0, SRCCOPY);
 
 
                 /*** Draw Map ***/
@@ -504,6 +522,9 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                 int x, y, ScreenX, ScreenY, Tile16X, Tile16Y, Tile8InTile16, Palette;
                 bool Hflip, Vflip;
                 Tile8 CurrentTile8;
+
+                int X,Y,index;
+                int pitch = 4*W;
 
                 for (ScreenX = 0; ScreenX < NbScreensX; ScreenX++) {
                     for (ScreenY = 0; ScreenY < NbScreensY; ScreenY++) {
@@ -523,12 +544,19 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                                     for (x = 0; x < 8; x++) {
                                         for (y = 0; y < 8; y++) {
                                             CurrentPixel = CurrentTile8.Pixel((Hflip?(7-x):x), (Vflip?(7-y):y)) + 0x10*Palette;
-                                            SetPixelV(hDCMem,
-                                                      256*ScreenX + 16*Tile16X + x + ((Tile8InTile16 & 0x01) ? 8 : 0),
-                                                      256*ScreenY + 16*Tile16Y + y + ((Tile8InTile16 & 0x02) ? 8 : 0),
-                                                      RGB(gMapData.PaletteData[CurrentPixel].Red,
-                                                          gMapData.PaletteData[CurrentPixel].Green,
-                                                          gMapData.PaletteData[CurrentPixel].Blue));
+//                                            SetPixelV(hDCMem,
+//                                                      256*ScreenX + 16*Tile16X + x + ((Tile8InTile16 & 0x01) ? 8 : 0),
+//                                                      256*ScreenY + 16*Tile16Y + y + ((Tile8InTile16 & 0x02) ? 8 : 0),
+//                                                      RGB(gMapData.PaletteData[CurrentPixel].Red,
+//                                                          gMapData.PaletteData[CurrentPixel].Green,
+//                                                          gMapData.PaletteData[CurrentPixel].Blue));
+                                            X = 256*ScreenX + 16*Tile16X + x + ((Tile8InTile16 & 0x01) ? 8 : 0);
+                                            Y = 256*ScreenY + 16*Tile16Y + y + ((Tile8InTile16 & 0x02) ? 8 : 0);
+                                            index = Y * pitch;
+                                            index += X*4;
+                                            lpBitmapBits[index + 0] = gMapData.PaletteData[CurrentPixel].Blue;  // blue
+                                            lpBitmapBits[index + 1] = gMapData.PaletteData[CurrentPixel].Green; // green
+                                            lpBitmapBits[index + 2] = gMapData.PaletteData[CurrentPixel].Red;  // red
                                         }
                                     }
                                 }
@@ -556,12 +584,19 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                         for (x = 0; x < 8; x++) {
                             for (y = 0; y < 8; y++) {
                                 CurrentPixel = CurrentTile8.Pixel((Hflip?(7-x):x), (Vflip?(7-y):y)) + 0x10*Palette;
-                                SetPixelV(hDCMem,
-                                          256*NbScreensX + 16*Tile16X + x + ((Tile8InTile16 & 0x01) ? 8 : 0) + 20,
-                                                           16*Tile16Y + y + ((Tile8InTile16 & 0x02) ? 8 : 0),
-                                          RGB(gMapData.PaletteData[CurrentPixel].Red,
-                                              gMapData.PaletteData[CurrentPixel].Green,
-                                              gMapData.PaletteData[CurrentPixel].Blue));
+//                                SetPixelV(hDCMem,
+//                                          256*NbScreensX + 16*Tile16X + x + ((Tile8InTile16 & 0x01) ? 8 : 0) + 20,
+//                                                           16*Tile16Y + y + ((Tile8InTile16 & 0x02) ? 8 : 0),
+//                                          RGB(gMapData.PaletteData[CurrentPixel].Red,
+//                                              gMapData.PaletteData[CurrentPixel].Green,
+//                                              gMapData.PaletteData[CurrentPixel].Blue));
+                                X = 256*NbScreensX + 16*Tile16X + x + ((Tile8InTile16 & 0x01) ? 8 : 0) + 20;
+                                Y = 16*Tile16Y + y + ((Tile8InTile16 & 0x02) ? 8 : 0);
+                                index = Y * pitch;
+                                index += X*4;
+                                lpBitmapBits[index + 0] = gMapData.PaletteData[CurrentPixel].Blue;  // blue
+                                lpBitmapBits[index + 1] = gMapData.PaletteData[CurrentPixel].Green; // green
+                                lpBitmapBits[index + 2] = gMapData.PaletteData[CurrentPixel].Red;  // red
                             }
                         }
                     }
@@ -576,12 +611,16 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                 }
 
                 // Now BitBlt the stuff from memory buffer to screen
-                BitBlt(hdc, 0, 0, win_width, win_height, hDCMem, 0, 0, SRCCOPY);
+                BitBlt(hdc, 0, 0, W, H, hDCMem, 0, 0, SRCCOPY);
+
+                SelectObject(hDCMem,oldbmp);
+        DeleteDC(hDCMem);
+        DeleteObject(bitmap);
 
                 // Cleanup
-                DeleteObject(Membitmap);
-                DeleteDC    (hDCMem);
-                DeleteDC    (hdc);
+                //DeleteObject(Membitmap);
+//                DeleteDC    (hDCMem);
+//                DeleteDC    (hdc);
             }
 
             EndPaint(hwnd, &ps);
@@ -609,12 +648,12 @@ BOOL CALLBACK AboutDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam
     switch(Message)
     {
         case WM_INITDIALOG:
-
+        {
 
             hWndComboBox = CreateWindow("COMBOBOX",
                                         NULL,
                                         WS_CHILD | WS_VISIBLE | CBS_DROPDOWN | WS_VSCROLL,
-                                        60, 62, 136, 160,
+                                        10, 12, 250, 160,
                                         hwnd,
                                         (HMENU)IDC_COMBOBOX_TEXT,
                                         (HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE),
@@ -629,20 +668,44 @@ BOOL CALLBACK AboutDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam
 
             }
 
+            //const TCHAR* fontName = _T("Arial");
+            const long nFontSize = 8;
+
+//            HDC hdc = GetDC(hwnd);
+//
+//            LOGFONT logFont = {0};
+//            //logFont.lfHeight = -MulDiv(nFontSize, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+//            logFont.lfWeight = FW_DONTCARE;
+//            logFont.lfFaceName[0] = '\0';
+            //strncpy(logFont.lfFaceName, fontName, 5);
+
+            //HFONT s_hFont = CreateFontIndirect(&logFont);
+
+            HFONT hFont = CreateFont(16,0,0,0,FW_DONTCARE,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,
+                CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY, VARIABLE_PITCH,TEXT("Calibri"));
+            //ReleaseDC(hwnd, hdc);
+
             for (int i = 0; i < NB_MAPS; i++) {
                 SendDlgItemMessage(hwnd, IDC_COMBOBOX_TEXT, CB_ADDSTRING, 0, (LONG)MapNameList[i]);
             }
 
+            SendMessage(hWndComboBox, WM_SETFONT, (WPARAM)hFont, (LPARAM)MAKELONG(TRUE, 0));
             SendDlgItemMessage(hwnd, IDC_COMBOBOX_TEXT, CB_SETCURSEL, gMapID, 0);
 
+        }
         return TRUE;
         case WM_COMMAND:
             switch(LOWORD(wParam))
             {
                 case IDOK:
-                    gMapID = SendDlgItemMessage(hwnd, IDC_COMBOBOX_TEXT, CB_GETCURSEL, 0, 0);
-                    cout << gMapID;
+                {
+                    int NewMapID = SendDlgItemMessage(hwnd, IDC_COMBOBOX_TEXT, CB_GETCURSEL, 0, 0);
+                    if (gMapID != NewMapID) {
+                        gMapID = NewMapID;
+                        bReloadMap = true;
+                    }
                     EndDialog(hwnd, IDOK);
+                }
                 break;
                 case IDCANCEL:
                     EndDialog(hwnd, IDCANCEL);
