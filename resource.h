@@ -3,6 +3,8 @@
 
 #define IDR_MYMENU 101
 #define IDI_MYICON 201
+#define IDD_SELECTMAP 301
+#define IDD_SIZE_CBO    102
 #define IDC_COMBOBOX_TEXT 1000
 
 #define IDD_ABOUT 301
