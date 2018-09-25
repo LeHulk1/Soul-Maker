@@ -53,6 +53,7 @@ public:
                 {NbScreensX = 0; NbScreensY = 0;}
     ~MapData();
     int  GetTile16(int ScreenX, int ScreenY, int X, int Y);
+    void SetTile16(int ScreenX, int ScreenY, int X, int Y, int NewTile16ID);
     void InsertTile16Data(unsigned char Tile16ByteData[8]);
     void InsertTile8Data(unsigned char Tile8ByteData[32]);
     void InsertColorData(unsigned char ColorByte1, unsigned char ColorByte2);

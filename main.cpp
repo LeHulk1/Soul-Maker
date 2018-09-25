@@ -150,11 +150,13 @@ static MapData gMapData;
 /* Global Map Metadata container */
 static vector<MapMetadata> gMapMetadata;
 
-/* Golbal Map ID */
+/* Global Map ID */
 static int gMapID = 0;
 
 static bool bMapLoaded = false;
 static bool bReloadMap = true;
+
+static int gSelectedTile = 0;
 
 
 
@@ -386,6 +388,8 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                     bMapLoaded = true;
 
                     EnableMenuItem(GetMenu(hwnd), ID_STUFF_GO, MF_BYCOMMAND | MF_ENABLED);
+
+                    RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_ERASE);
 
                 }
                 break;
@@ -628,6 +632,62 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
         }
         case WM_LBUTTONDOWN:
         {
+            if (bMapLoaded) {
+                POINT P;
+                int ScreenX, ScreenY, X, Y;
+                if (GetCursorPos(&P) && ScreenToClient(hwnd, &P)){
+
+                    //cout << P.x << " - " << P.y << endl;
+                    /* Is mouse is in Map area? */
+                    if (P.x < gMapData.NbScreensX*256 && P.y < gMapData.NbScreensY*256) {
+                        ScreenX = P.x / 256;
+                        ScreenY = P.y / 256;
+                        X = (P.x % 256) / 16;
+                        Y = (P.y % 256) / 16;
+                        cout << "Clicked screen (" << ScreenX << ", " << ScreenY << ") tile ("
+                                                   << X << ", " << Y << ")." << endl
+                                                   << "   --> Tile ID = " << gMapData.GetTile16(ScreenX, ScreenY, X, Y) << "." << endl << endl;
+                        gSelectedTile = gMapData.GetTile16(ScreenX, ScreenY, X, Y);
+                    }
+                    /* Is mouse in Tileset area? */
+                    else if (P.x > gMapData.NbScreensX*256 + 20 && P.x < gMapData.NbScreensX*256 + 276
+                             && P.y < 256) {
+                        cout << "Clicked tile ID " << (P.y/16)*16 + (P.x - (gMapData.NbScreensX*256 + 20))/16 << "." << endl << endl;
+                        gSelectedTile = (P.y/16)*16 + (P.x - (gMapData.NbScreensX*256 + 20))/16;
+                    }
+                }
+            }
+            break;
+        }
+        case WM_RBUTTONDOWN:
+        {
+            if (bMapLoaded) {
+                POINT P;
+                int ScreenX, ScreenY, X, Y;
+                if (GetCursorPos(&P) && ScreenToClient(hwnd, &P)){
+
+                    //cout << P.x << " - " << P.y << endl;
+                    /* Is mouse is in Map area? */
+                    if (P.x < gMapData.NbScreensX*256 && P.y < gMapData.NbScreensY*256) {
+                        ScreenX = P.x / 256;
+                        ScreenY = P.y / 256;
+                        X = (P.x % 256) / 16;
+                        Y = (P.y % 256) / 16;
+                        cout << "Changed screen (" << ScreenX << ", " << ScreenY << ") tile ("
+                                                   << X << ", " << Y << ")." << endl
+                                                   << "   --> Tile ID " << gMapData.GetTile16(ScreenX, ScreenY, X, Y)
+                                                   << " changed to " << gSelectedTile << "." << endl << endl;
+                        gMapData.SetTile16(ScreenX, ScreenY, X, Y, gSelectedTile);
+
+                        RECT RectTile;
+                        RectTile.left=ScreenX*256 + X*16;
+                        RectTile.top=ScreenY*256 + Y*16;
+                        RectTile.right=ScreenX*256 + X*16 + 16;
+                        RectTile.bottom=ScreenY*256 + Y*16 + 16;
+                        RedrawWindow(hwnd, &RectTile, NULL, RDW_INVALIDATE | RDW_ERASE);
+                    }
+                }
+            }
             break;
         }
         case WM_CLOSE:
@@ -669,7 +729,7 @@ BOOL CALLBACK AboutDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam
             }
 
             //const TCHAR* fontName = _T("Arial");
-            const long nFontSize = 8;
+            //const long nFontSize = 8;
 
 //            HDC hdc = GetDC(hwnd);
 //
