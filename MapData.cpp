@@ -134,7 +134,9 @@ int MapData::GetTile16(int ScreenX, int ScreenY, int X, int Y) {
 }
 
 void MapData::SetTile16(int ScreenX, int ScreenY, int X, int Y, int NewTile16ID) {
-    MapTiles[256*NbScreensX*ScreenY + 256*ScreenX + 16*Y + X] = NewTile16ID;
+    if (ScreenX < NbScreensX && ScreenY < NbScreensY && X < 16 && Y < 16) {
+        MapTiles[256*NbScreensX*ScreenY + 256*ScreenX + 16*Y + X] = NewTile16ID;
+    }
 }
 
 void MapData::InsertTile16Data(unsigned char Tile16ByteData[8]) {
