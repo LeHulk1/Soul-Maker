@@ -2,6 +2,9 @@
 #define __MAPMETADATA_H__
 
 #include <vector>
+#include <windows.h>
+
+#define NB_MAPS 97
 
 
 using namespace std;
@@ -26,6 +29,8 @@ void InsertMapMetadata(vector<MapMetadata> &MapMetadataList,
                        int aTilesetAddress,
                        int aGraphicsAddress,
                        int aPaletteAddress);
+
+void FillMapCombobox(HWND hwnd, int ComboboxID);
 
 void GetMapMetadata(vector<MapMetadata> &MapMetadataList);
 

@@ -1,6 +1,109 @@
 #include "MapMetadata.h"
 
 
+
+/* Map names */
+const char* MapNameList[] = {
+    "[00 01] - Master's Shrine - Grass Valley",
+    "[01 01] - Grass Valley",
+    "[01 02] - Grass Valley - Child's secret passage",
+    "[01 03] - Grass Valley - Treasure room",
+    "[01 04] - Grass Valley - Chief's room",
+    "[02 01] - Grass Valley - Underground Castle, west",
+    "[02 02] - Grass Valley - Underground Castle, east",
+    "[02 03] - Lisa's dream",
+    "[03 01] - Grass Valley - Leo's Painting, room 1",
+    "[03 02] - Grass Valley - Leo's Painting, room 2",
+    "[03 03] - Grass Valley - Leo's Painting, room 3",
+    "[03 04] - Grass Valley - Tulip's dream",
+    "[03 05] - Grass Valley - Leo's Painting, room 4",
+    "[03 06] - Grass Valley - Solid Arm",
+    "[00 08] - Trial Room",
+    "[00 09] - Overworld",
+    "[00 0A] - *** UNKNOWN - Intro screen? ***",
+    "[00 0B] - Ending with Lisa",
+    "[00 0C] - *** UNKNOWN ***",
+    "[00 0D] - *** UNKNOWN ***",
+    "[00 02] - Master's Shrine - GreenWood",
+    "[04 01] - GreenWood",
+    "[04 02] - GreenWood - Mole tunnels",
+    "[04 03] - GreenWood - Squirrel's house",
+    "[04 04] - GreenWood - Psycho Sword Squirrel's house",
+    "[04 05] - GreenWood - Mole tunnels (bird's dream)",
+    "[04 06] - GreenWood (stump's dream)",
+    "[05 01] - GreenWood - Lostside Marsh",
+    "[05 02] - GreenWood - Water Shrine F1",
+    "[05 03] - GreenWood - Water Shrine B1",
+    "[05 04] - GreenWood - Water Shrine B2",
+    "[05 05] - GreenWood - Fire Shrine F1",
+    "[05 06] - GreenWood - Fire Shrine B1",
+    "[05 07] - GreenWood - Fire Shrine B2",
+    "[05 08] - GreenWood - Light Shrine F1",
+    "[05 09] - GreenWood - Light Shrine B1",
+    "[05 0A] - GreenWood - Elemental Statues",
+    "[00 03] - Master's Shrine - St Elles",
+    "[06 01] - St Elles",
+    "[07 01] - St Elles - South Seabed",
+    "[07 02] - St Elles - Secret Cave",
+    "[07 03] - St Elles - Lue's Room",
+    "[07 04] - St Elles - North Seabed",
+    "[07 05] - St Elles - North Seabed - dolphin's dream",
+    "[08 01] - St Elles - Southerta",
+    "[08 02] - St Elles - Rockbird",
+    "[08 03] - St Elles - Durean",
+    "[08 04] - St Elles - Blester",
+    "[09 01] - St Elles - Ghost Ship",
+    "[09 02] - St Elles - Ghost Ship - dolphin's dream",
+    "[00 04] - Master's Shrine - Mountain of Souls",
+    "[0A 01] - Mountain of Souls",
+    "[0B 01] - Mountain of Souls - Aurora Ridge, south",
+    "[0B 02] - Mountain of Souls - Aurora Ridge, north",
+    "[0B 03] - Mountain of Souls - Aurora Ridge, north - Old man's dream",
+    "[0B 04] - Mountain of Souls - Lune Passage",
+    "[0B 05] - Mountain of Souls - Lune",
+    "[0B 06] - Mountain of Souls - Lune - Mushroom's dream",
+    "[0B 07] - Mountain of Souls - Poseidon",
+    "[0C 01] - Mountain of Souls - Summit",
+    "[0C 02] - Mountain of Souls - Ice Hill",
+    "[0C 03] - Mountain of Souls - Laynole",
+    "[00 05] - Master's Shrine - Leo's Lab",
+    "[0D 01] - Leo's Lab - F1",
+    "[0D 02] - Leo's Lab - F2",
+    "[0D 03] - Leo's Lab - Attic",
+    "[0D 04] - Leo's Lab - Mousehole",
+    "[0D 05] - Leo's Lab - F1 - Cat's dream",
+    "[0E 01] - Leo's Lab - B1",
+    "[0E 02] - Leo's Lab - B2",
+    "[0E 03] - Leo's Lab - Power Plant",
+    "[0E 04] - Leo's Lab - Tin Doll",
+    "[0E 05] - Leo's Lab - B2 (Duplicated?)",
+    "[0F 01] - Leo's Lab - Model Town 1",
+    "[0F 02] - Leo's Lab - Model Town 2",
+    "[00 06] - Master's Shrine - Magridd Castle",
+    "[10 01] - Magridd Castle",
+    "[11 01] - Magridd Castle - Torture Chamber",
+    "[11 02] - Magridd Castle - B1",
+    "[11 03] - Magridd Castle - B2",
+    "[11 04] - Magridd Castle - B2 (Duplicated?)",
+    "[12 01] - Magridd Castle - Left Tower F1",
+    "[12 02] - Magridd Castle - Left Tower F2",
+    "[12 03] - Magridd Castle - Left Tower F3",
+    "[12 04] - Magridd Castle - Right Tower F1",
+    "[12 05] - Magridd Castle - Right Tower F2",
+    "[12 06] - Magridd Castle - Right Tower F3",
+    "[12 07] - Magridd Castle - Right Tower F4",
+    "[13 01] - Magridd Castle - Airship Dock",
+    "[13 02] - *** UNKNOWN ***",
+    "[13 03] - *** UNKNOWN ***",
+    "[00 07] - Master's Shrine - World of Evil",
+    "[14 01] - World of Evil - First Space",
+    "[14 02] - World of Evil - Second Space",
+    "[14 03] - World of Evil - Dazzling Space",
+    "[15 01] - World of Evil - Deathtoll's Shrine",
+    "[15 02] - World of Evil - Final Battle"
+};
+
+
 using namespace std;
 
 MapMetadata::MapMetadata(int aMapArrangementAddress,
@@ -27,6 +130,14 @@ void InsertMapMetadata(vector<MapMetadata> &MapMetadataList,
                                aGraphicsAddress,
                                aPaletteAddress);
     MapMetadataList.push_back(NewMapMetadata);
+}
+
+
+void FillMapCombobox(HWND hwnd, int ComboboxID) {
+
+    for (int i = 0; i < NB_MAPS; i++) {
+        SendDlgItemMessage(hwnd, ComboboxID, CB_ADDSTRING, 0, (LONG)MapNameList[i]);
+    }
 }
 
 
