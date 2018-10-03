@@ -9,7 +9,7 @@ namespace DrawingTools {
 
     void DrawMap(MapData &aMapData, unsigned char* aBitmapBits, int BitmapWidth);
     void DrawTileset(MapData &aMapData, unsigned char* aBitmapBits, int BitmapWidth);
-    void DrawSelection(int TopLeftX, int TopLeftY, int BottomRightX, int BottomRightY, unsigned char* aBitmapBits, int BitmapWidth);
+    void DrawSelection(TileSelection &aTileSelection, unsigned char* aBitmapBits, int BitmapWidth);
 }
 
 

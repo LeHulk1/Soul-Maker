@@ -98,33 +98,24 @@ namespace DrawingTools {
     }
 
 
-    void DrawSelection(int TopLeftX, int TopLeftY, int BottomRightX, int BottomRightY, unsigned char* aBitmapBits, int BitmapWidth) {
+    void DrawSelection(TileSelection &aTileSelection, unsigned char* aBitmapBits, int BitmapWidth) {
 
-        int X, Y;
+        if (aTileSelection.SelectionExists) {
 
-//        if (gSelectionIsInTileset) {
-//
-//            /* Draw green square around selected tile */
-//            int TopLeftX = TilesetX + (gSelectedTileID%16)*16;
-//            int TopLeftY =            (gSelectedTileID/16)*16;
-//
-//            /* Top edge */
-//            for (X = 0; X < 15; X++) {lpBitmapBits[( TopLeftY    *BitmapWidth + TopLeftX+ X)*4 + 1] = 255;}
-//            /* Right edge */
-//            for (Y = 0; Y < 15; Y++) {lpBitmapBits[((TopLeftY+ Y)*BitmapWidth + TopLeftX+15)*4 + 1] = 255;}
-//            /* Bottom edge */
-//            for (X = 15; X > 0; X--) {lpBitmapBits[((TopLeftY+15)*BitmapWidth + TopLeftX+ X)*4 + 1] = 255;}
-//            /* Left edge */
-//            for (Y = 15; Y > 0; Y--) {lpBitmapBits[((TopLeftY+ Y)*BitmapWidth + TopLeftX   )*4 + 1] = 255;}
-//        }
-//        else {
-
-            /* Draw green rectangle around selection */
-//            int TopLeftX     = (gSelectedTile16_i.AbsX() < gSelectedTile16_j.AbsX() ? gSelectedTile16_i.AbsX() : gSelectedTile16_j.AbsX())*16;
-//            int TopLeftY     = (gSelectedTile16_i.AbsY() < gSelectedTile16_j.AbsY() ? gSelectedTile16_i.AbsY() : gSelectedTile16_j.AbsY())*16;
-//            int BottomRightX = (gSelectedTile16_i.AbsX() > gSelectedTile16_j.AbsX() ? gSelectedTile16_i.AbsX() : gSelectedTile16_j.AbsX())*16 + 15;
-//            int BottomRightY = (gSelectedTile16_i.AbsY() > gSelectedTile16_j.AbsY() ? gSelectedTile16_i.AbsY() : gSelectedTile16_j.AbsY())*16 + 15;
-
+            /* Get the required rectangle coordinates */
+            int TopLeftX, TopLeftY, BottomRightX, BottomRightY, X, Y;
+            if (aTileSelection.SelectionInTileset) {
+                TopLeftX     = aTileSelection.GetTilesetX() + (aTileSelection.GetSelectedTileID()%16)*16;
+                TopLeftY     =                                (aTileSelection.GetSelectedTileID()/16)*16;
+                BottomRightX = aTileSelection.GetTilesetX() + (aTileSelection.GetSelectedTileID()%16)*16 + 15;
+                BottomRightY =                                (aTileSelection.GetSelectedTileID()/16)*16 + 15;
+            }
+            else {
+                TopLeftX     = aTileSelection.TopLeftTileX()*16;
+                TopLeftY     = aTileSelection.TopLeftTileY()*16;
+                BottomRightX = aTileSelection.BottomRightTileX()*16 + 15;
+                BottomRightY = aTileSelection.BottomRightTileY()*16 + 15;
+            }
             int SelectionWidth  = BottomRightX - TopLeftX + 1;
             int SelectionHeight = BottomRightY - TopLeftY + 1;
 
@@ -136,7 +127,7 @@ namespace DrawingTools {
             for (X = SelectionWidth -1; X > 0; X--) {aBitmapBits[(BottomRightY*BitmapWidth + TopLeftX + X)*4 + 1] = 255;}
             /* Left edge */
             for (Y = SelectionHeight-1; Y > 0; Y--) {aBitmapBits[((TopLeftY+Y)*BitmapWidth + TopLeftX    )*4 + 1] = 255;}
-//        }
+        }
     }
 
 }

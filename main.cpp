@@ -56,19 +56,17 @@ static MapData gMapData;
 /* Global Map Metadata container */
 static vector<MapMetadata> gMapMetadata;
 
+/* Global Tile Selection object */
+static TileSelection gTileSelection;
+
 /* Global Map ID */
 static int gMapID = 0;
 
-static bool bMapLoaded = false;
-static bool bReloadMap = true;
-
-static int  gSelectedTileID = 0;
+static bool gMapLoaded = false;
+static bool gReloadMap = true;
 static bool gLeftClickDown = false;
-static bool gSelectionExists = false;
-static bool gSelectionIsInTileset = false;
 
-static SelectedTile16 gSelectedTile16_i;
-static SelectedTile16 gSelectedTile16_j;
+
 
 
 
@@ -217,23 +215,26 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
         break;
         case WM_PAINT:
         {
-            if (bReloadMap) {
+            if (gReloadMap) {
 
                 /* Get data for requested map */
                 int MapLoadStatus = MapDataTools::GetMapData(gROMFile, gMapMetadata[gMapID], gMapData);
-                bReloadMap = false;
+                gReloadMap = false;
 
                 if (MapLoadStatus == FAILURE) {
                    MessageBox(hwnd, "Failed to read map metadata!", "Notice", MB_OK | MB_ICONINFORMATION);
                    break;
                 }
-                bMapLoaded = true;
+                gMapLoaded = true;
+
+                /* Store x-position of the left side of the tileset */
+                gTileSelection.SetTilesetX(gMapData.NbScreensX*256 + 20);
             }
 
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
 
-            if (bMapLoaded) {
+            if (gMapLoaded) {
 
                 /* Prepare for drawing */
                 HDC hDCMem = CreateCompatibleDC(hdc); // Create a device context in memory
@@ -262,25 +263,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                 DrawingTools::DrawTileset(gMapData, lpBitmapBits, BitmapWidth);
 
                 /*** Draw selection ***/
-                if (gSelectionExists) {
-
-                    /* Get coordinates of the top left and bottom right vertices of the selection rectangle */
-                    int TopLeftX, TopLeftY, BottomRightX, BottomRightY;
-                    if (gSelectionIsInTileset) {
-                        TopLeftX     = 256*gMapData.NbScreensX + 20 + (gSelectedTileID%16)*16;
-                        TopLeftY     =                                (gSelectedTileID/16)*16;
-                        BottomRightX = 256*gMapData.NbScreensX + 20 + (gSelectedTileID%16)*16 + 15;
-                        BottomRightY =                                (gSelectedTileID/16)*16 + 15;
-                    }
-                    else {
-                        TopLeftX     = (gSelectedTile16_i.AbsX() < gSelectedTile16_j.AbsX() ? gSelectedTile16_i.AbsX() : gSelectedTile16_j.AbsX())*16;
-                        TopLeftY     = (gSelectedTile16_i.AbsY() < gSelectedTile16_j.AbsY() ? gSelectedTile16_i.AbsY() : gSelectedTile16_j.AbsY())*16;
-                        BottomRightX = (gSelectedTile16_i.AbsX() > gSelectedTile16_j.AbsX() ? gSelectedTile16_i.AbsX() : gSelectedTile16_j.AbsX())*16 + 15;
-                        BottomRightY = (gSelectedTile16_i.AbsY() > gSelectedTile16_j.AbsY() ? gSelectedTile16_i.AbsY() : gSelectedTile16_j.AbsY())*16 + 15;
-                    }
-
-                    DrawingTools::DrawSelection(TopLeftX, TopLeftY, BottomRightX, BottomRightY, lpBitmapBits, BitmapWidth);
-                }
+                DrawingTools::DrawSelection(gTileSelection, lpBitmapBits, BitmapWidth);
 
                 /* Now use BitBlt to print the memory buffer contents on the window */
                 BitBlt(hdc, 0, 0, BitmapWidth, BitmapHeight, hDCMem, 0, 0, SRCCOPY);
@@ -297,7 +280,7 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 
         case WM_LBUTTONDOWN:
         {
-            if (bMapLoaded) {
+            if (gMapLoaded) {
                 POINT P;
                 int ScreenX, ScreenY, X, Y;
                 if (GetCursorPos(&P) && ScreenToClient(hwnd, &P)){
@@ -308,46 +291,18 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                         ScreenY = P.y / 256;
                         X = (P.x % 256) / 16;
                         Y = (P.y % 256) / 16;
-                        cout << "Clicked screen (" << ScreenX << ", " << ScreenY << ") tile ("
-                                                   << X << ", " << Y << ")." << endl
-                                                   << "   --> Tile ID = " << gMapData.GetTile16(ScreenX, ScreenY, X, Y) << "." << endl << endl;
-
-
+//                        cout << "Clicked screen (" << ScreenX << ", " << ScreenY << ") tile ("
+//                                                   << X << ", " << Y << ")." << endl
+//                                                   << "   --> Tile ID = " << gMapData.GetTile16(ScreenX, ScreenY, X, Y) << "." << endl << endl;
 
                         /* Remove previous selection */
-                        if (gSelectionExists) {
-                            if (gSelectionIsInTileset) {
-                                RECT RectTile;
-                                RectTile.left = 256*gMapData.NbScreensX + 20 + (gSelectedTileID%16)*16;
-                                RectTile.top = (gSelectedTileID/16)*16;
-                                RectTile.right = 256*gMapData.NbScreensX + 20 + (gSelectedTileID%16)*16 + 16;
-                                RectTile.bottom = (gSelectedTileID/16)*16 + 16;
-                                RedrawWindow(hwnd, &RectTile, NULL, RDW_INVALIDATE /*| RDW_ERASE*/);
-                            }
-                            else {
-                                int TopLeftTileX = (gSelectedTile16_i.AbsX() < gSelectedTile16_j.AbsX() ? gSelectedTile16_i.AbsX() : gSelectedTile16_j.AbsX());
-                                int TopLeftTileY = (gSelectedTile16_i.AbsY() < gSelectedTile16_j.AbsY() ? gSelectedTile16_i.AbsY() : gSelectedTile16_j.AbsY());
-                                int BottomRightTileX = (gSelectedTile16_i.AbsX() > gSelectedTile16_j.AbsX() ? gSelectedTile16_i.AbsX() : gSelectedTile16_j.AbsX());
-                                int BottomRightTileY = (gSelectedTile16_i.AbsY() > gSelectedTile16_j.AbsY() ? gSelectedTile16_i.AbsY() : gSelectedTile16_j.AbsY());
-
-                                int SelectionWidth  = BottomRightTileX - TopLeftTileX + 1;
-                                int SelectionHeight = BottomRightTileY - TopLeftTileY + 1;
-                                RECT RectTile;
-                                RectTile.left = TopLeftTileX*16;
-                                RectTile.top = TopLeftTileY*16;
-                                RectTile.right = (TopLeftTileX + SelectionWidth)*16;
-                                RectTile.bottom = (TopLeftTileY + SelectionHeight)*16;
-                                RedrawWindow(hwnd, &RectTile, NULL, RDW_INVALIDATE /*| RDW_ERASE*/);
-                            }
-                        }
-
-
+                        gTileSelection.RedrawSelection(hwnd);
 
                         gLeftClickDown = true;
-                        gSelectedTile16_i.FillTileInfo(ScreenX, ScreenY, X, Y);
-                        gSelectedTile16_j.FillTileInfo(ScreenX, ScreenY, X, Y);
-                        gSelectionIsInTileset = false;
-                        gSelectionExists = true;
+                        gTileSelection.SetTile_i(ScreenX, ScreenY, X, Y);
+                        gTileSelection.SetTile_j(ScreenX, ScreenY, X, Y);
+                        gTileSelection.SelectionInTileset = false;
+                        gTileSelection.SelectionExists = true;
                     }
                     /* Is mouse in Tileset area? */
                     else if (P.x > gMapData.NbScreensX*256 + 20 && P.x < gMapData.NbScreensX*256 + 276
@@ -356,43 +311,14 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
 
 
                         /* Remove previous selection */
-                        if (gSelectionExists) {
-                            if (gSelectionIsInTileset) {
-                                RECT RectTile;
-                                RectTile.left = 256*gMapData.NbScreensX + 20 + (gSelectedTileID%16)*16;
-                                RectTile.top = (gSelectedTileID/16)*16;
-                                RectTile.right = 256*gMapData.NbScreensX + 20 + (gSelectedTileID%16)*16 + 16;
-                                RectTile.bottom = (gSelectedTileID/16)*16 + 16;
-                                RedrawWindow(hwnd, &RectTile, NULL, RDW_INVALIDATE /*| RDW_ERASE*/);
-                            }
-                            else {
-                                int TopLeftTileX = (gSelectedTile16_i.AbsX() < gSelectedTile16_j.AbsX() ? gSelectedTile16_i.AbsX() : gSelectedTile16_j.AbsX());
-                                int TopLeftTileY = (gSelectedTile16_i.AbsY() < gSelectedTile16_j.AbsY() ? gSelectedTile16_i.AbsY() : gSelectedTile16_j.AbsY());
-                                int BottomRightTileX = (gSelectedTile16_i.AbsX() > gSelectedTile16_j.AbsX() ? gSelectedTile16_i.AbsX() : gSelectedTile16_j.AbsX());
-                                int BottomRightTileY = (gSelectedTile16_i.AbsY() > gSelectedTile16_j.AbsY() ? gSelectedTile16_i.AbsY() : gSelectedTile16_j.AbsY());
+                        gTileSelection.RedrawSelection(hwnd);
 
-                                int SelectionWidth  = BottomRightTileX - TopLeftTileX + 1;
-                                int SelectionHeight = BottomRightTileY - TopLeftTileY + 1;
-                                RECT RectTile;
-                                RectTile.left = TopLeftTileX*16;
-                                RectTile.top = TopLeftTileY*16;
-                                RectTile.right = (TopLeftTileX + SelectionWidth)*16;
-                                RectTile.bottom = (TopLeftTileY + SelectionHeight)*16;
-                                RedrawWindow(hwnd, &RectTile, NULL, RDW_INVALIDATE /*| RDW_ERASE*/);
-                            }
-                        }
+                        gTileSelection.SetTileID((P.y/16)*16 + (P.x - (gMapData.NbScreensX*256 + 20))/16);
+                        gTileSelection.SelectionInTileset = true;
+                        gTileSelection.SelectionExists = true;
 
-
-                        gSelectedTileID = (P.y/16)*16 + (P.x - (gMapData.NbScreensX*256 + 20))/16;
-                        gSelectionIsInTileset = true;
-                        gSelectionExists = true;
-
-                        RECT RectTile;
-                        RectTile.left = 256*gMapData.NbScreensX + 20 + (gSelectedTileID%16)*16;
-                        RectTile.top = (gSelectedTileID/16)*16;
-                        RectTile.right = 256*gMapData.NbScreensX + 20 + (gSelectedTileID%16)*16 + 16;
-                        RectTile.bottom = (gSelectedTileID/16)*16 + 16;
-                        RedrawWindow(hwnd, &RectTile, NULL, RDW_INVALIDATE /*| RDW_ERASE*/);
+                        /* Draw new selection */
+                        gTileSelection.RedrawSelection(hwnd);
                     }
                 }
             }
@@ -411,103 +337,34 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                         ScreenY = P.y / 256;
                         X = (P.x % 256) / 16;
                         Y = (P.y % 256) / 16;
-                        cout << "Released click on screen (" << ScreenX << ", " << ScreenY << ") tile ("
-                                                             << X << ", " << Y << ")." << endl
-                                                             << "   --> Tile ID = " << gMapData.GetTile16(ScreenX, ScreenY, X, Y) << "." << endl << endl;
-                        gSelectedTile16_j.FillTileInfo(ScreenX, ScreenY, X, Y);
+//                        cout << "Released click on screen (" << ScreenX << ", " << ScreenY << ") tile ("
+//                                                             << X << ", " << Y << ")." << endl
+//                                                             << "   --> Tile ID = " << gMapData.GetTile16(ScreenX, ScreenY, X, Y) << "." << endl << endl;
+                        gTileSelection.SetTile_j(ScreenX, ScreenY, X, Y);
                     }
 
-                    int TopLeftTileX = (gSelectedTile16_i.AbsX() < gSelectedTile16_j.AbsX() ? gSelectedTile16_i.AbsX() : gSelectedTile16_j.AbsX());
-                    int TopLeftTileY = (gSelectedTile16_i.AbsY() < gSelectedTile16_j.AbsY() ? gSelectedTile16_i.AbsY() : gSelectedTile16_j.AbsY());
-                    int BottomRightTileX = (gSelectedTile16_i.AbsX() > gSelectedTile16_j.AbsX() ? gSelectedTile16_i.AbsX() : gSelectedTile16_j.AbsX());
-                    int BottomRightTileY = (gSelectedTile16_i.AbsY() > gSelectedTile16_j.AbsY() ? gSelectedTile16_i.AbsY() : gSelectedTile16_j.AbsY());
-
-                    int SelectionWidth  = BottomRightTileX - TopLeftTileX + 1;
-                    int SelectionHeight = BottomRightTileY - TopLeftTileY + 1;
-                    RECT RectTile;
-                    RectTile.left = TopLeftTileX*16;
-                    RectTile.top = TopLeftTileY*16;
-                    RectTile.right = (TopLeftTileX + SelectionWidth)*16;
-                    RectTile.bottom = (TopLeftTileY + SelectionHeight)*16;
-                    RedrawWindow(hwnd, &RectTile, NULL, RDW_INVALIDATE /*| RDW_ERASE*/);
+                    /* Remove previous selection */
+                    gTileSelection.RedrawSelection(hwnd);
                 }
             }
             gLeftClickDown = false;
             break;
         }
+
         case WM_RBUTTONUP:
         {
-            if (bMapLoaded && gSelectionExists) {
+            if (gMapLoaded && gTileSelection.SelectionExists) {
                 POINT P;
-                int ScreenX, ScreenY, TileX, TileY, X, Y;
                 if (GetCursorPos(&P) && ScreenToClient(hwnd, &P)){
 
-                    //cout << P.x << " - " << P.y << endl;
                     /* Is mouse is in Map area? */
                     if (P.x < gMapData.NbScreensX*256 && P.y < gMapData.NbScreensY*256) {
 
-                        if (gSelectionIsInTileset) {
-                            ScreenX = P.x / 256;
-                            ScreenY = P.y / 256;
-                            X = (P.x % 256) / 16;
-                            Y = (P.y % 256) / 16;
-                            cout << "Changed screen (" << ScreenX << ", " << ScreenY << ") tile ("
-                                                       << X << ", " << Y << ")." << endl
-                                                       << "   --> Tile ID " << gMapData.GetTile16(ScreenX, ScreenY, X, Y)
-                                                       << " changed to " << gSelectedTileID << "." << endl << endl;
-
-                            gMapData.SetTile16(ScreenX, ScreenY, X, Y, gSelectedTileID);
-
-
-                            RECT RectTile;
-                            RectTile.left = (P.x/16)*16;
-                            RectTile.top = (P.y/16)*16;
-                            RectTile.right = (P.x/16)*16 + 16;
-                            RectTile.bottom = (P.y/16)*16 + 16;
-                            RedrawWindow(hwnd, &RectTile, NULL, RDW_INVALIDATE /*| RDW_ERASE*/);
-                        }
-                        else {
-                            int TopLeftTileX = (gSelectedTile16_i.AbsX() < gSelectedTile16_j.AbsX() ? gSelectedTile16_i.AbsX() : gSelectedTile16_j.AbsX());
-                            int TopLeftTileY = (gSelectedTile16_i.AbsY() < gSelectedTile16_j.AbsY() ? gSelectedTile16_i.AbsY() : gSelectedTile16_j.AbsY());
-                            int BottomRightTileX = (gSelectedTile16_i.AbsX() > gSelectedTile16_j.AbsX() ? gSelectedTile16_i.AbsX() : gSelectedTile16_j.AbsX());
-                            int BottomRightTileY = (gSelectedTile16_i.AbsY() > gSelectedTile16_j.AbsY() ? gSelectedTile16_i.AbsY() : gSelectedTile16_j.AbsY());
-
-                            int SelectionWidth  = BottomRightTileX - TopLeftTileX + 1;
-                            int SelectionHeight = BottomRightTileY - TopLeftTileY + 1;
-
-                            int TileSelection[SelectionWidth][SelectionHeight];
-
-                            for (X = 0; X < SelectionWidth; X++) {
-                                for (Y = 0; Y < SelectionHeight; Y++) {
-                                    TileSelection[X][Y] =
-                                        gMapData.GetTile16((TopLeftTileX+X)/16, (TopLeftTileY+Y)/16, (TopLeftTileX+X)%16, (TopLeftTileY+Y)%16);
-                                }
-                            }
-
-
-    //                        ScreenX = P.x / 256;
-    //                        ScreenY = P.y / 256;
-                            TileX = P.x / 16;
-                            TileY = P.y / 16;
-    //                        cout << "Changed screen (" << ScreenX << ", " << ScreenY << ") tile ("
-    //                                                   << TileX << ", " << TileY << ")." << endl
-    //                                                   << "   --> Tile ID " << gMapData.GetTile16(ScreenX, ScreenY, TileX, TileY)
-    //                                                   << " changed to " << gSelectedTile << "." << endl << endl;
-
-                            for (X = 0; X < SelectionWidth; X++) {
-                                for (Y = 0; Y < SelectionHeight; Y++) {
-                                    gMapData.SetTile16((TileX+X)/16, (TileY+Y)/16, (TileX+X)%16, (TileY+Y)%16,
-                                                       TileSelection[X][Y]);
-                                }
-                            }
-
-                            RECT RectTile;
-                            RectTile.left = TileX*16;
-                            RectTile.top = TileY*16;
-                            RectTile.right = (TileX + SelectionWidth)*16;
-                            RectTile.bottom = (TileY + SelectionHeight)*16;
-                            RedrawWindow(hwnd, &RectTile, NULL, RDW_INVALIDATE /*| RDW_ERASE*/);
-                        }
+                        /* Paste selection into the map and update it */
+                        int AbsTileX = P.x / 16;
+                        int AbsTileY = P.y / 16;
+                        gTileSelection.PasteSelectionTiles(gMapData, AbsTileX, AbsTileY);
+                        gTileSelection.RedrawNewTiles(hwnd, AbsTileX, AbsTileY);
                     }
                 }
             }
@@ -565,8 +422,8 @@ BOOL CALLBACK AboutDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam
                     int NewMapID = SendDlgItemMessage(hwnd, IDC_COMBOBOX_TEXT, CB_GETCURSEL, 0, 0);
                     if (gMapID != NewMapID) {
                         gMapID = NewMapID;
-                        bReloadMap = true;
-                        gSelectionExists = false;
+                        gReloadMap = true;
+                        gTileSelection.SelectionExists = false;
                     }
                     EndDialog(hwnd, IDOK);
                 }
