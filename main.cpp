@@ -66,6 +66,8 @@ static bool gMapLoaded = false;
 static bool gReloadMap = true;
 static bool gLeftClickDown = false;
 
+static HWND hwndButton;
+
 
 
 
@@ -122,8 +124,22 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
         return 0;
     }
 
+     hwndButton = CreateWindow("BUTTON",  // Predefined class; Unicode assumed
+                                   "Reload",      // Button text
+                                   WS_TABSTOP /*| WS_VISIBLE*/ | WS_CHILD | BS_DEFPUSHBUTTON,  // Styles
+                                   10,         // x position
+                                   10,         // y position
+                                   100,        // Button width
+                                   100,        // Button height
+                                   hwnd,     // Parent window
+                                   (HMENU) IDB_RELOAD_MAP,       // Button ID.
+                                   (HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE),
+                                   NULL);      // Pointer not needed.
+
     /* Make the window visible on the screen */
     ShowWindow (hwnd, nCmdShow);
+
+
 
     /* Run the message loop. It will run until GetMessage() returns 0 */
     while (GetMessage (&messages, NULL, 0, 0) > 0)
@@ -195,6 +211,11 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                     RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE);
 
                 }
+                break;
+                case IDB_RELOAD_MAP:
+                    /* Discard changes and reload the map */
+                    gReloadMap = true;
+                    RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE);
                 break;
                 case ID_FILE_EXIT:
                     PostMessage(hwnd, WM_CLOSE, 0, 0);
@@ -273,6 +294,17 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                 DeleteDC(hDCMem);
                 DeleteObject(bitmap);
             }
+
+            /* Move "Reload Map" button */
+            MoveWindow(hwndButton,
+                       gTileSelection.GetTilesetX(),
+                       276,
+                       80,
+                       30,
+                       false);
+
+            /* Make the button visible on the screen */
+            ShowWindow (hwndButton, SW_SHOW);
 
             EndPaint(hwnd, &ps);
             break;
