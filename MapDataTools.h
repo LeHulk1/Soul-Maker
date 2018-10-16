@@ -14,8 +14,6 @@ using namespace std;
 typedef enum {SUCCESS = 0, FAILURE = 1} Status;
 
 namespace MapDataTools {
-    void Compress(bool MapMode);
-    //void Decompress(fstream &ROMFile, MapData &aMapData, int MapDataAddress, int length);
 
     Status GetMapData(fstream &ROMFile,
                       MapMetadata &MapMetadata,
@@ -35,6 +33,12 @@ namespace MapDataTools {
                         int PaletteAddress,
                         int NbColors);
 
+    void InsertMapDataIntoROM(fstream &ROMFile,
+                              MapMetadata &aMapMetadata,
+                              MapData &aMapData);
+
+    void Compress(vector<unsigned char> &DataToCompress,
+                  vector<unsigned char> &CompressedData);
     void Decompress(fstream &ROMFile,
                     vector<unsigned char> &DecompressedData,
                     int Address,
