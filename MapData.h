@@ -60,6 +60,7 @@ public:
 
     int NbScreensX;
     int NbScreensY;
+    int CompressedDataLength;
     vector<int>    MapTiles;
     vector<Tile16> Tile16Data;
     vector<Tile8>  Tile8Data;

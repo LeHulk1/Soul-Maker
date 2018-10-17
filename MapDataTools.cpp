@@ -28,6 +28,7 @@
     if (CurrentOutputBit == 7) { \
         CurrentOutputBit = 0;    \
         CompressedData.push_back(CurrentOutputByte);     \
+        CurrentOutputByte = 0;   \
     } else {CurrentOutputBit++;} \
 }
 
@@ -81,7 +82,6 @@ namespace MapDataTools {
     static int ReadPointer(unsigned char AddressBytes[3]) {
         return AddressBytes[2]*0x10000 + AddressBytes[1]*0x100 + AddressBytes[0]*0x01;
     }
-
 
 //    void Compress(bool MapMode) {
 //
@@ -399,7 +399,7 @@ namespace MapDataTools {
                                int MapDataAddress) {
 
         unsigned char Width, Height, LengthHundreds, LengthUnits;
-        int DataLength, CurrentByte;
+        int DataLength, CompressedDataLength, CurrentByte;
 
         /* Get the width/height in number of screens + length of the decompressed data */
         ROMFile.seekp(MapDataAddress, ios::beg);
@@ -408,6 +408,8 @@ namespace MapDataTools {
         ROMFile.read((char*)(&LengthUnits), 1);
         ROMFile.read((char*)(&LengthHundreds), 1);
         DataLength = (0x100 * LengthHundreds) + LengthUnits;
+        cout << "DataLength = " << DataLength << endl;
+        cout << "Data Address = " << MapDataAddress << endl;
 
         /* Allocate the decompressed data buffer */
         vector<unsigned char> DecompressedData(DataLength);
@@ -416,12 +418,14 @@ namespace MapDataTools {
         Decompress(ROMFile,
                    DecompressedData,
                    MapDataAddress + 4, /* +4 to ignore the leading width/height/length bytes */
-                   DataLength);
+                   DataLength,
+                   CompressedDataLength);
 
         /* Update map data */
         aMapData.MapTiles.clear();
         aMapData.NbScreensX = (int)Width;
         aMapData.NbScreensY = (int)Height;
+        aMapData.CompressedDataLength = CompressedDataLength;
         for (CurrentByte = 0; CurrentByte < DataLength; CurrentByte++) {
             aMapData.MapTiles.push_back(DecompressedData[CurrentByte]);
         }
@@ -433,7 +437,7 @@ namespace MapDataTools {
                         int TilesetAddress) {
 
         unsigned char LengthHundreds, LengthUnits;
-        int DataLength, CurrentTileData, CurrentByte;
+        int DataLength, CompressedDataLength, CurrentTileData, CurrentByte;
 
         /* Get the length of the decompressed data */
         ROMFile.seekp(TilesetAddress, ios::beg);
@@ -448,7 +452,8 @@ namespace MapDataTools {
         Decompress(ROMFile,
                    DecompressedData,
                    TilesetAddress + 2, /* +2 to ignore the leading length bytes */
-                   DataLength);
+                   DataLength,
+                   CompressedDataLength);
 
         /* Update tileset data */
         aMapData.Tile16Data.clear();
@@ -478,7 +483,7 @@ namespace MapDataTools {
         if (bDataIsCompressed) {
 
             unsigned char LengthHundreds, LengthUnits;
-            int DataLength;
+            int DataLength, CompressedDataLength;
 
             /* Get the length of the decompressed data */
             ROMFile.seekp(GraphicsAddress, ios::beg);
@@ -493,7 +498,8 @@ namespace MapDataTools {
             Decompress(ROMFile,
                        DecompressedData,
                        GraphicsAddress + 2, /* +2 to ignore the leading length bytes */
-                       DataLength);
+                       DataLength,
+                       CompressedDataLength);
 
             /* Update graphics data */
             int CurrentByte;
@@ -542,13 +548,6 @@ namespace MapDataTools {
                               MapMetadata &aMapMetadata,
                               MapData &aMapData) {
 
-        /* Get the address of the data in ROM */
-        unsigned char AddressBytes[3];
-        ROMFile.seekp(aMapMetadata.MapArrangementAddress, ios::beg);
-        ROMFile.seekg(2, ios::cur);
-        ROMFile.read((char*)(&AddressBytes[0]), 3);
-        int Address = ReadPointer(AddressBytes);
-
         int DataLength = aMapData.NbScreensX * aMapData.NbScreensY * 0x100;
         vector<unsigned char> DataToCompress(DataLength);
         vector<unsigned char> CompressedData;
@@ -561,8 +560,33 @@ namespace MapDataTools {
         /* Perform the compression */
         Compress(DataToCompress, CompressedData);
 
-        /* Write into ROM */
+        /* Decide at which address we should write the new compressed map data.
+         *   - If it is shorter or as long as the original data, overwrite it.
+         *   - Otherwise, write at a certain address after 0x100000. */
+        int Address;
         unsigned char Byte;
+        ROMFile.seekp(aMapMetadata.MapArrangementAddress, ios::beg);
+        ROMFile.seekg(2, ios::cur);
+        if ((int)CompressedData.size() <= aMapData.CompressedDataLength) {
+            /* Get the address of the data in ROM */
+            unsigned char AddressBytes[3];
+            ROMFile.read((char*)(&AddressBytes[0]), 3);
+            Address = ReadPointer(AddressBytes);
+        }
+        else {
+            /* Calculate the new address */
+            Address = 0x100000;
+
+            /* Update pointer in Map Metadata in ROM */
+            Byte = Address % 0x100;
+            ROMFile.write((char*)(&Byte), 1);
+            Byte = (Address % 0x10000) / 0x100;
+            ROMFile.write((char*)(&Byte), 1);
+            Byte = Address / 0x10000;
+            ROMFile.write((char*)(&Byte), 1);
+        }
+
+        /* Write into ROM */
         ROMFile.seekp(Address, ios::beg);
         Byte = (unsigned char)(aMapData.NbScreensX);
         ROMFile.write((char*)(&Byte), 1);
@@ -572,7 +596,7 @@ namespace MapDataTools {
         ROMFile.write((char*)(&Byte), 1);
         Byte = (unsigned char)(DataLength / 0x100);
         ROMFile.write((char*)(&Byte), 1);
-        ROMFile.write((char*)(&CompressedData[0]), DataLength);
+        ROMFile.write((char*)(&CompressedData[0]), CompressedData.size());
     }
 
 
@@ -582,7 +606,7 @@ namespace MapDataTools {
 
         int CurrentIndex      = SEARCH_SIZE;
         int CurrentOutputBit  = 0;
-        int CurrentOutputByte = 0;
+        unsigned char CurrentOutputByte = 0;
         int BestIndex, BestLength, CompareLimit, CurrentLength, i, j;
 
         /* Prepare memory buffer: left-pad with with 0x20 values */
@@ -645,15 +669,16 @@ namespace MapDataTools {
     void Decompress(fstream &ROMFile,
                     vector<unsigned char> &DecompressedData,
                     int Address,
-                    int DataLength) {
+                    int DecompressedDataLength,
+                    int &CompressedDataLength) {
 
         int InputByteIndex, OutputByteIndex;
         unsigned char InputByte, OutputByte;
-        bool InputBits[8 * DataLength];
+        bool InputBits[8 * DecompressedDataLength];
 
         /* Read compressed input stream */
         ROMFile.seekp(Address, ios::beg);
-        for (InputByteIndex = 0; InputByteIndex < DataLength; InputByteIndex++) {
+        for (InputByteIndex = 0; InputByteIndex < DecompressedDataLength; InputByteIndex++) {
             ROMFile.read((char*)(&InputByte), 1);
             InputBits[0 + 8*InputByteIndex] = InputByte & 0x80;
             InputBits[1 + 8*InputByteIndex] = InputByte & 0x40;
@@ -671,7 +696,7 @@ namespace MapDataTools {
         int InputBitIndex = 0;
 
         /* Decompression algorithm */
-        while (NbBytesWritten < DataLength) {
+        while (NbBytesWritten < DecompressedDataLength) {
 
             if (InputBits[InputBitIndex] == 1) {
                 /* 1 => Literal case: directly copy the following byte to the output stream. */
@@ -724,6 +749,8 @@ namespace MapDataTools {
             }
         }
 
+        /* Calculate and return the length (in bytes) of the compressed data */
+        CompressedDataLength = (InputBitIndex + 6) / 8;
     }
 
 }

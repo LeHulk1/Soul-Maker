@@ -66,7 +66,8 @@ static bool gMapLoaded = false;
 static bool gReloadMap = true;
 static bool gLeftClickDown = false;
 
-static HWND hwndButton;
+static HWND hwndButtonReload;
+static HWND hwndButtonSave;
 
 
 
@@ -124,17 +125,29 @@ int WINAPI WinMain (HINSTANCE hThisInstance,
         return 0;
     }
 
-     hwndButton = CreateWindow("BUTTON",  // Predefined class; Unicode assumed
-                                   "Reload",      // Button text
-                                   WS_TABSTOP /*| WS_VISIBLE*/ | WS_CHILD | BS_DEFPUSHBUTTON,  // Styles
-                                   10,         // x position
-                                   10,         // y position
-                                   100,        // Button width
-                                   100,        // Button height
-                                   hwnd,     // Parent window
-                                   (HMENU) IDB_RELOAD_MAP,       // Button ID.
-                                   (HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE),
-                                   NULL);      // Pointer not needed.
+    hwndButtonReload = CreateWindow("BUTTON",  // Predefined class; Unicode assumed
+                                    "Reload",      // Button text
+                                    WS_TABSTOP /*| WS_VISIBLE*/ | WS_CHILD | BS_DEFPUSHBUTTON,  // Styles
+                                    10,         // x position
+                                    10,         // y position
+                                    100,        // Button width
+                                    100,        // Button height
+                                    hwnd,     // Parent window
+                                    (HMENU) IDB_RELOAD_MAP,       // Button ID.
+                                    (HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE),
+                                    NULL);      // Pointer not needed.
+
+    hwndButtonSave = CreateWindow("BUTTON",  // Predefined class; Unicode assumed
+                                  "Save",      // Button text
+                                  WS_TABSTOP /*| WS_VISIBLE*/ | WS_CHILD | BS_DEFPUSHBUTTON,  // Styles
+                                  10,         // x position
+                                  10,         // y position
+                                  100,        // Button width
+                                  100,        // Button height
+                                  hwnd,     // Parent window
+                                  (HMENU) IDB_WRITE_MAP,       // Button ID.
+                                  (HINSTANCE)GetWindowLong(hwnd, GWL_HINSTANCE),
+                                  NULL);      // Pointer not needed.
 
     /* Make the window visible on the screen */
     ShowWindow (hwnd, nCmdShow);
@@ -217,6 +230,12 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                     gReloadMap = true;
                     RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE);
                 break;
+                case IDB_WRITE_MAP:
+                    /* Save Map into ROM */
+                    MapDataTools::InsertMapDataIntoROM(gROMFile,
+                                                       gMapMetadata[gMapID],
+                                                       gMapData);
+                break;
                 case ID_FILE_EXIT:
                     PostMessage(hwnd, WM_CLOSE, 0, 0);
                 break;
@@ -239,7 +258,9 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
             if (gReloadMap) {
 
                 /* Get data for requested map */
-                int MapLoadStatus = MapDataTools::GetMapData(gROMFile, gMapMetadata[gMapID], gMapData);
+                int MapLoadStatus = MapDataTools::GetMapData(gROMFile,
+                                                             gMapMetadata[gMapID],
+                                                             gMapData);
                 gReloadMap = false;
 
                 if (MapLoadStatus == FAILURE) {
@@ -296,15 +317,24 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
             }
 
             /* Move "Reload Map" button */
-            MoveWindow(hwndButton,
+            MoveWindow(hwndButtonReload,
                        gTileSelection.GetTilesetX(),
                        276,
                        80,
                        30,
                        false);
 
-            /* Make the button visible on the screen */
-            ShowWindow (hwndButton, SW_SHOW);
+            /* Move "Save Map" button */
+            MoveWindow(hwndButtonSave,
+                       gTileSelection.GetTilesetX() + 90,
+                       276,
+                       80,
+                       30,
+                       false);
+
+            /* Make the buttons visible on the screen */
+            ShowWindow(hwndButtonReload, SW_SHOW);
+            ShowWindow(hwndButtonSave, SW_SHOW);
 
             EndPaint(hwnd, &ps);
             break;

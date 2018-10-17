@@ -42,7 +42,8 @@ namespace MapDataTools {
     void Decompress(fstream &ROMFile,
                     vector<unsigned char> &DecompressedData,
                     int Address,
-                    int DataLength);
+                    int DecompressedDataLength,
+                    int &CompressedDataLength);
 }
 
 #endif // __MAPDATATOOLS_H__
