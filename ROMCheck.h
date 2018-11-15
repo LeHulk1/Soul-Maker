@@ -4,16 +4,11 @@
 #include <fstream>
 
 
-typedef enum {
-    UNKNOWN = 0,
-    UNHEADERED,
-    HEADERED
-} ROMStatus;
-
-
 using namespace std;
 
-ROMStatus CheckOriginalROM(fstream &ROMFile);
+bool CheckOriginalROM(fstream &ROMFile,
+                      bool    &bROMIsHeadered,
+                      bool    &bROMIsExtended);
 
 
 #endif // __ROMCHECK_H__

@@ -209,9 +209,11 @@ LRESULT CALLBACK WindowProcedure (HWND hwnd, UINT message, WPARAM wParam, LPARAM
                         return 1;
                     }
 
-                    ROMStatus Status = CheckOriginalROM(gROMFile);
+                    bool bROMIsHeadered = false;
+                    bool bROMIsExtended = false;
+                    bool ROMStatus = CheckOriginalROM(gROMFile, bROMIsHeadered, bROMIsExtended);
 
-                    if (Status == UNKNOWN) {
+                    if (!ROMStatus) {
                         MessageBox(hwnd, "ROM unknown!", "Notice", MB_OK | MB_ICONINFORMATION);
                         break;
                     }
